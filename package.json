@@ -1,14 +1,22 @@
 {
   "name": "world",
   "version": "1.0.0",
-  "description": "",
+  "private": true,
+  "description": "this is world project test",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.16.4"
+    "express": "^4.16.4",
+    "mongodb": "^3.2.3",
+    "open": "^6.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rockie2695/world"
   }
 }

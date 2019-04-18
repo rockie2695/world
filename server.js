@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 8080;
+const open = require('open');
 
 //database connection
 var MongoClient = require('mongodb').MongoClient;
@@ -8,44 +9,116 @@ var mongodb = require('mongodb');
 var assert = require('assert');
 var ObjectId = require('mongodb').ObjectID;
 // Use your own mlab account!!!
-var mongourl = 'mongodb://rockie2695:26762714Rockie@ds057816.mlab.com:57816/rockie2695_mongodb';
+var mongourl = "mongodb+srv://rockie2695:26762714Rockie@cluster-test-cw81o.gcp.mongodb.net/test?retryWrites=true";
+const mongoConectClient = new MongoClient(mongourl, {
+    useNewUrlParser: true
+});
 
 // console.log that your server is up and running
-app.listen(port, () => console.log(`Listening on port ${port}`));
+app.listen(port, () => {
+    console.log(`Listening on port ${port}`)
+    if (port == 8080) {
+        (async () => {
+            // Specify app arguments
+            await open('http://localhost:' + port, {
+                app: "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+            });
+        })();
+    }
+});
 // create a GET route
 app.get('/', (req, res) => {
     res.send({
         express: 'YOUR EXPRESS BACKEND IS CONNECTED TO REACT'
     });
 });
+app.get('/test', (req, res) => {
+    mongoConectClient.connect(err => {
+        if (err) {
+            console.log(err)
+        } else {
+            new Promise(function (resolve, reject) {
+                let collection = mongoConectClient.db("rockie2695_mongodb").collection("life");
+                collection.find().count(function (err, count) {
+                    if (err) {
+                        reject(err)
+                    } else {
+                        resolve(count)
+                    }
+                })
+            })
+        }
 
+    });
+
+})
 app.get('/start', (req, res) => {
     //check if no world ,create world
 
     //add to world table {energy:"5000"}
     //add to life table {producer:true,move:1,energy:1,number:1}
-    MongoClient.connect(mongourl, {
-        useNewUrlParser: true
-    }, function (err, db) {
-        insert(db, {
-            energy: "5000"
-        }, 'world', function (err, result) {
-            console.log(err, result)
-        })
-        insert(db, {
-            producer: true,
-            move: 1,
-            energy: 1,
-            number: 1
-        }, 'life', function (err, result) {
-            console.log(err, result)
-        })
-    })
+    mongoConectClient.connect(err => {
+        if (err) {
+            console.log(err)
+        } else {
+            var createWorld = new Promise(function (resolve, reject) {
+                let collection = mongoConectClient.db("rockie2695_mongodb").collection("world");
+                // perform actions on the collection object
+                insert(collection, {
+                    energy: "5000"
+                }, function (err, result) {
+                    if (err) {
+                        reject(err)
+                    } else {
+                        resolve(result)
+                    }
+
+                })
+            })
+            var createLife = function (id) {
+                return new Promise(function (resolve, reject) {
+                    let collection = mongoConectClient.db("rockie2695_mongodb").collection("life");
+                    // perform actions on the collection object
+                    insert(collection, {
+                        producer: true,
+                        move: 1,
+                        energy: 1,
+                        number: 1,
+                        worldid: new mongodb.ObjectID(id)
+                    }, function (err, result) {
+                        if (err) {
+                            reject(err)
+                        } else {
+                            resolve(result)
+                        }
+
+                    })
+                })
+            }
+
+
+            createWorld
+                .then(function (result) {
+                    return createLife(result.ops._id)
+                })
+                .then(function (result) {
+                    res.send("ok")
+                }).catch(function (error) {
+                    console.log(error)
+                    res.send(error)
+                }).finally(function () {
+                    // 己結算 (己履行[fulfilled]或己拒絕[rejected])
+                    mongoConectClient.close()
+                });
+        }
+
+    });
+
     //if have world,get all 
 })
 
-function insert(db, query, table, callback) {
-    db.db().collection(table).insertOne(query, function (err, result) {
+function insert(collection, query, callback) {
+    collection.insertOne(query, function (err, result) {
         callback(err, result);
     });
 }
