@@ -94,7 +94,6 @@ function doAllTheThings(res) {
                 })
             }
             var createLife = function (id) {
-                console.log(id)
                 return new Promise(function (resolve, reject) {
                     let collection = mongoConectClient.db("rockie2695_mongodb").collection("life");
                     // perform actions on the collection object
@@ -147,7 +146,8 @@ function doAllTheThings(res) {
                         move: element.move,
                         energy: element.energy,
                         number: element.number,
-                        worldid: new mongodb.ObjectID(element.worldid)
+                        food: element.food,
+                        worldid: element.worldid
                     }, function (err, result) {
                         if (err) {
                             reject(err)
@@ -162,7 +162,6 @@ function doAllTheThings(res) {
                     if (result.length === 0) {
                         return createWorld()
                             .then(function (result) {
-                                console.log(result.ops)
                                 return createLife(result.ops[0]._id)
                             })
                     } else if (result.length > 0) {
@@ -180,21 +179,20 @@ function doAllTheThings(res) {
                                             break;
                                         }
                                     }
-                                    console.log(worldFromWorldid)
                                     for (let j = 0; j < life[i].number; j++) {
                                         eachLife.push({
-                                            _id: life[i]._id,
+                                            _id: new mongodb.ObjectID(life[i]._id),
                                             producer: life[i].producer,
                                             move: life[i].move,
                                             energy: life[i].energy,
-                                            worldid: life[i].worldid,
+                                            worldid: new mongodb.ObjectID(life[i].worldid),
                                             maxEnergy: worldFromWorldid.energy,
+                                            food: new mongodb.ObjectID(life[i].food),
                                             number: 1
                                         })
                                     }
                                 }
                                 shuffleArray(eachLife)
-                                console.log(eachLife)
                             }).then(function () { //eachLife action, such as copy itself
                                 for (let m = 0, eachLifeLength = eachLife.length; m < eachLifeLength; m++) {
                                     if (eachLife[m].producer) {
@@ -207,9 +205,23 @@ function doAllTheThings(res) {
                                         if (useEnergy < eachLife[m].maxEnergy) {
                                             eachLife.push(eachLife[m])
                                         }
+                                        //make non-producer by 1/100 chances
+                                        if (getRandomInt(1, 100) === 1) {
+                                            let newLife = {
+                                                producer: false,
+                                                move: eachLife[m].move,
+                                                energy: eachLife[m].energy * getRandomInt(1, 3),
+                                                worldid: eachLife[m].worldid,
+                                                food: eachLife[m]._id,
+                                                number: 1
+                                            }
+                                            eachLife.push(newLife)
+                                        }
+                                    } else {
+                                        let result = eachLife.filter(element => typeof element['_id'] != "undefined" && element['_id'].equals(eachLife[m].food) && element['worldid'].equals(eachLife[m].worldid))
+                                        console.log(result)
                                     }
                                 }
-                                console.log("eachLife", eachLife)
                             }).then(function () { //combine eachLife to combinLife
                                 combineLife = []
                                 for (let i = 0; i < eachLife.length; i++) {
@@ -217,16 +229,19 @@ function doAllTheThings(res) {
                                         let result = combineLife.findIndex(element => element['_id'].equals(eachLife[i]._id) && element['worldid'].equals(eachLife[i].worldid))
                                         if (result === -1) {
                                             combineLife.push({
-                                                _id: eachLife[i]._id,
-                                                worldid: eachLife[i].worldid,
-                                                number: 1
+                                                _id: new mongodb.ObjectID(eachLife[i]._id),
+                                                producer: eachLife[i].producer,
+                                                worldid: new mongodb.ObjectID(eachLife[i].worldid),
+                                                energy: eachLife[i].energy,
+                                                food: new mongodb.ObjectID(eachLife[i].food),
+                                                move: eachLife[i].move,
+                                                number: eachLife[i].number
                                             })
                                         } else {
-                                            combineLife[result].number++
+                                            combineLife[result].number += eachLife[i].number
                                         }
                                     }
                                 }
-                                console.log(combineLife)
                             }).then(function () { //compare combineLife and life, see which life should update (number)
                                 return new Promise(function (resolve, reject) {
                                     let promises = []
@@ -239,7 +254,6 @@ function doAllTheThings(res) {
                                             )
                                         } else {
                                             //update
-                                            console.log("update")
                                             promises.push(
                                                 updateLife(combineLife[i])
                                             )
